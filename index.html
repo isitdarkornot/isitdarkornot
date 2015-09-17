@@ -1,0 +1,210 @@
+<html>
+<head>
+<title>isitdarkornot</title>
+<style>
+html body { overflow: hidden; } 
+body { text-align: center; }
+.loctype { font-size: 75%; }
+
+html, body, .container { height: 100%; }
+.container { display: flex; align-items: center; justify-content: center; font-size: 300%; }
+
+.status { display: block; }
+.success .status { display: none; }
+
+table { width: 100%; height: 100%; }
+td { vertical-align: middle; }
+
+body.success .location, body.success .loctype, body.success .result { display: block; }
+.location, .loctype, .result { display: none; }
+
+/* gradients adapted from http://codepen.io/zessx/details/rDEAl */
+body.yes { background: transparent linear-gradient(to bottom, #020111 60%, #20202C 100%) repeat scroll 0% 0%; color: white; }
+body.no { background: transparent linear-gradient(to bottom, #90DFFE 0%, #38A3D1 100%) repeat scroll 0% 0%; color: white; }
+body.soon { background: transparent linear-gradient(to bottom, #163C52 0%, #4F4F47 30%, #C5752D 60%, #B7490F 80%, #2F1107 100%) repeat scroll 0% 0%; }
+body.notlong { background: transparent linear-gradient(to bottom, #4A4969 0%, #7072AB 50%, #CD82A0 100%) repeat scroll 0% 0%; }
+
+.tag { position: absolute; right: 0; bottom: 0; left: auto; top: auto; width: auto; height: auto; }
+</style>
+<script>
+function getLocation(cb) {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(cb, function(err) { cb(); }, {timeout: 3000, maximumAge: 3600000})
+    } else {
+        cb()
+    }
+}
+function DEGREES(radians) { return radians * 180 / Math.PI; }
+function RADIANS(degrees) { return degrees * Math.PI / 180; }
+function SIN(degrees) { return Math.sin(RADIANS(degrees)); }
+function COS(degrees) { return Math.cos(RADIANS(degrees)); }
+function TAN(degrees) { return Math.tan(RADIANS(degrees)); }
+function ASIN(x) { return DEGREES(Math.asin(x)); }
+function ACOS(x) { return DEGREES(Math.acos(x)); }
+function ATAN(x) { return DEGREES(Math.atan(x)); }
+function setTextById(id, text) { document.getElementById(id).textContent = text; }
+function jdate(timestamp) { return (timestamp / 86400) + 2440587.5; }
+function timestamp(jdate) { return (jdate - 2440587.5) * 86400; }
+function /* jdate = */ jdate_now() { return jdate(Date.now() / 1000); }
+function /* n = */ julian_cycle(jdate, lw) { var nstar = jdate - 2451545.0009 - lw/360; return Math.floor(nstar + .5); }
+function /* J* = */ approximate_solar_noon(lw, n) { return 2451545.0009 + lw/360 + n; }
+function /* M = */ solar_mean_anomaly(jstar) { return (357.5291 + .98560028 * (jstar - 2451545)) % 360;}
+function /* C = */ center(M) { return 1.9148 * SIN(M) + 0.0200 * SIN(2*M) + 0.0003 * SIN(3*M); }
+function /* lambda = */ ecliptic_longitude(M, C) { return (M + 102.9372 + C + 180) % 360; }
+function /* delta = */ declination(lambda) { return ASIN(SIN(lambda) * SIN(23.45)); }
+function jtransit(jstar, M, lambda) { return jstar + .0053 * SIN(M) - .0069 * SIN(2*lambda); }
+function /* omega_0 =  */ hour_angle(phi, delta) { return ACOS( (SIN(-0.83) - SIN(phi) * SIN(delta)) / (COS(phi) * COS(delta)) ); }
+function sunrise_angle(phi, delta) { return -hour_angle(phi, delta); }
+function sunset_angle(phi, delta) { return hour_angle(phi, delta); }
+function dark_result(lat, long) {
+        var jdate = jdate_now(),
+            lw = -long,
+            phi = lat,
+            n = julian_cycle(jdate, lw),
+            jstar = approximate_solar_noon(lw, n),
+            M = solar_mean_anomaly(jstar),
+            C = center(M),
+            lambda = ecliptic_longitude(M, C),
+            delta = declination(lambda),
+            jt = jtransit(jstar, M, lambda),
+            w0 = hour_angle(phi, delta),
+            //rise = sunrise_angle(phi, delta),
+            //set = sunset_angle(phi, delta),
+            jset = jt + w0/360, jrise = jt - w0/360
+
+        var stamp_transit = timestamp(jt),
+            stamp_rise = timestamp(jrise),
+            stamp_set = timestamp(jset),
+            date_transit = new Date(stamp_transit * 1000),
+            date_rise = new Date(stamp_rise * 1000),
+            date_set = new Date(stamp_set * 1000)
+
+        if(Math.abs(jdate - jrise) < 1/24)
+            return "notlong"
+        else if(Math.abs(jdate - jset) < 1/24)
+            return "soon"
+        else if(jdate > jrise && jdate < jset) 
+            return "no"
+        else
+            return "yes"
+}
+
+function go(source, lat, long) {
+    setTextById("location", Math.abs(lat).toFixed(2) + "SN"[+(lat >= 0)] + " " +
+         Math.abs(long).toFixed(2) + "WE"[+(long >= 0)])
+    setTextById("loctype", source)
+    var d = dark_result(lat, long)
+    setTextById("result", {"notlong": "not for long"}[d] || d)
+    document.getElementById("location").href = document.location.href.split("?")[0] + "?" + lat.toFixed(2) + "," + long.toFixed(2);
+    setTextById("status", "Done")
+    document.body.className = "success " + d
+}
+
+function do_freegeoip() {
+    setTextById("status", "Fetching geolocation information from freegeoip.net.  This is blocked by easylist by default.")
+    var scheme = document.location.protocol == "http:" ? "http:" : "https:"
+    var url = scheme + "//freegeoip.net/json/"
+    var req = new XMLHttpRequest()
+    req.addEventListener("readystatechange", function() {
+
+        if(this.readyState != 4) return
+        if(this.status != "200") {
+            setTextById("status", this.statusText || "Fetching geoip data failed, possibly due to easylist blocking.  You'll have to look out a window.")
+            return next_method();
+        }
+        var j = JSON.parse(this.responseText)
+        go("freegeoip.net", j['latitude'], j['longitude'])
+        document.getElementById("loctype").innerHTML = "<a href=\"https://freegeoip.net\">freegeoip.net</a>"
+    })
+    req.open("GET", url)
+    req.send()
+}
+
+function do_browser() {
+    setTextById("status", "Fetching browser geolocation information.  If prompted, choose to allow access")
+    getLocation(
+        function(location) {
+            if(!location) {
+                return next_method();
+            }
+            go("browser", location.coords.latitude, location.coords.longitude)
+        }
+    )
+}
+
+function do_uri() {
+    if(!location.search) { next_method(); return; }
+    var loc = location.search.substring(1).split(","),
+         lat = parseFloat(loc[0])
+         long = parseFloat(loc[1])
+    go("url", lat, long)
+}
+
+var methods;
+function next_method() {
+    if(!methods.length) { setTextById("status", "All geolocation methods failed.  You'll have to look out a window.") }
+    console.log("next_method " + methods)
+    methods.shift()()
+}
+
+function ffs() {
+    return (/Gecko\//).test(navigator.userAgent)
+}
+
+function main() {
+    // on firefox, the freegeoip method is more dependable, due to the 'not
+    // now' bug in firefox which causes the failure callback from geolocate to
+    // never be called if the user selects 'not now'
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=675533
+    if(ffs()) { methods = [do_uri, do_freegeoip, do_browser]; }
+    else { methods = [do_uri, do_browser, do_freegeoip] }
+    next_method();
+    if(location.search) {
+        var loc = location.search.substring(1).split(","),
+             lat = parseFloat(loc[0])
+             long = parseFloat(loc[1])
+        go("url", lat, long)
+        return
+    }
+}
+
+</script>
+</head>
+<body class="start">
+<div class="tag">By <a href="http://emergent.unpythonic.net/">Jeff Epler</a>.  <a href="https://github.com/isitdarkornot/isitdarkornot.github.io">source code</a></div>
+<div class="container">
+<div class="content">
+<div class="result">Is it dark?  <span id="result">UNKNOWN</span></div>
+<div class="location">Location: <a id="location">UNKNOWN</a></div>
+<div class="loctype">from <span id="loctype">NONE</span></div>
+<div class="status">Status: <span id="status">Starting</span></div>
+</div>
+</div>
+<script>
+main()
+</script>
+</body>
+</html>
+<!--
+The MIT License (MIT)
+
+Copyright (c) 2015 isitdarkornot
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
