@@ -79,9 +79,9 @@ function dark_result(lat, long) {
             date_rise = new Date(stamp_rise * 1000),
             date_set = new Date(stamp_set * 1000)
 
-        if(Math.abs(jdate - jrise) < 1/24)
+        if(Math.abs(jdate - jrise) < 1/48)
             return "notlong"
-        else if(Math.abs(jdate - jset) < 1/24)
+        else if(Math.abs(jdate - jset) < 1/48)
             return "soon"
         else if(jdate > jrise && jdate < jset) 
             return "no"
