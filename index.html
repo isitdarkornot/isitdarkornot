@@ -29,7 +29,7 @@ body.notlong { background: transparent linear-gradient(to bottom, #4A4969 0%, #7
 <script>
 function getLocation(cb) {
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(cb, function(err) { cb(); }, {timeout: 3000, maximumAge: 3600000})
+        navigator.geolocation.getCurrentPosition(cb, function(err) { cb(); }, {timeout: 30000, maximumAge: 3600000})
     } else {
         cb()
     }
