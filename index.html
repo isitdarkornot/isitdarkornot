@@ -147,25 +147,13 @@ function next_method() {
     methods.shift()()
 }
 
-function ffs() {
-    return (/Gecko\//).test(navigator.userAgent)
-}
-
 function main() {
     // on firefox, the freegeoip method is more dependable, due to the 'not
     // now' bug in firefox which causes the failure callback from geolocate to
     // never be called if the user selects 'not now'
     // https://bugzilla.mozilla.org/show_bug.cgi?id=675533
-    if(ffs()) { methods = [do_uri, do_freegeoip, do_browser]; }
-    else { methods = [do_uri, do_browser, do_freegeoip] }
+    methods = [do_uri, do_browser, do_freegeoip];
     next_method();
-    if(location.search) {
-        var loc = location.search.substring(1).split(","),
-             lat = parseFloat(loc[0])
-             long = parseFloat(loc[1])
-        go("url", lat, long)
-        return
-    }
 }
 
 </script>
