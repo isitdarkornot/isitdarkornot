@@ -101,7 +101,7 @@ function go(source, lat, long) {
 }
 
 function do_freegeoip() {
-    setTextById("status", "Fetching geolocation information from freegeoip.net.  This is blocked by easylist by default.")
+    setTextById("status", "Fetching geolocation information from freegeoip.app.  This is blocked by easylist by default.")
     var scheme = document.location.protocol == "http:" ? "http:" : "https:"
     var url = scheme + "//freegeoip.app/json/"
     var req = new XMLHttpRequest()
@@ -114,7 +114,7 @@ function do_freegeoip() {
         }
         var j = JSON.parse(this.responseText)
         go("freegeoip.net", j['latitude'], j['longitude'])
-        document.getElementById("loctype").innerHTML = "<a href=\"https://freegeoip.net\">freegeoip.net</a>"
+        document.getElementById("loctype").innerHTML = "<a href=\"https://freegeoip.app\">freegeoip.app</a>"
     })
     req.open("GET", url)
     req.send()
