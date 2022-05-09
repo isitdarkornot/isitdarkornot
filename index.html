@@ -101,9 +101,9 @@ function go(source, lat, long) {
 }
 
 function do_freegeoip() {
-    setTextById("status", "Fetching geolocation information from freegeoip.app.  This is blocked by easylist by default.")
+    setTextById("status", "Fetching geolocation information from freegeoip.live.  This is blocked by easylist by default.")
     var scheme = document.location.protocol == "http:" ? "http:" : "https:"
-    var url = scheme + "//freegeoip.app/json/"
+    var url = scheme + "//freegeoip.live/json/"
     var req = new XMLHttpRequest()
     req.addEventListener("readystatechange", function() {
 
